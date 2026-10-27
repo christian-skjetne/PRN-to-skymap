@@ -7,9 +7,9 @@
   "use strict";
 
   const TLE_URL = "https://raw.githubusercontent.com/satvisorcom/satvisor-data/master/celestrak/tle/gnss.tle";
-  const METADATA_URL = "https://files.igs.org/pub/station/general/igs_satellite_metadata.snx";
+  const METADATA_URL = "https://raw.githubusercontent.com/taroz/GNSS-Radar/master/js/prnmap.js";
   const TLE_CACHE_KEY = "gnss-sky-map:tle:v1";
-  const METADATA_CACHE_KEY = "gnss-sky-map:metadata:v1";
+  const METADATA_CACHE_KEY = "gnss-sky-map:metadata:v2";
   const TLE_CACHE_TTL = 6 * 60 * 60 * 1000;
   const METADATA_CACHE_TTL = 24 * 60 * 60 * 1000;
   const SYSTEM_BY_PREFIX = { G: "GPS", R: "GLONASS", E: "Galileo", C: "BeiDou", J: "QZSS", S: "SBAS", I: "NavIC" };
@@ -138,45 +138,23 @@
     }
   }
 
-  function parseSinexDate(value) {
-    const match = /^(\d{4}):(\d{3}):(\d+(?:\.\d+)?)$/.exec(value);
-    if (!match) return null;
-    const year = Number(match[1]);
-    const day = Number(match[2]);
-    const seconds = Number(match[3]);
-    if (day === 0 && seconds === 0) return null;
-    return Date.UTC(year, 0, 1) + (day - 1) * 86400000 + seconds * 1000;
-  }
-
-  function parseMetadata(text, now) {
-    const noradBySvn = new Map();
-    const prnBySvn = new Map();
-    let block = "";
-    for (const line of text.split(/\r?\n/)) {
-      if (line.startsWith("+SATELLITE/")) {
-        block = line.slice(1).trim();
-        continue;
-      }
-      if (line.startsWith("-SATELLITE/")) {
-        block = "";
-        continue;
-      }
-      if (!line || line.startsWith("*") || line.startsWith("%")) continue;
-      const fields = line.trim().split(/\s+/);
-      if (block === "SATELLITE/IDENTIFIER" && fields.length >= 3 && /^[A-Z]\d{3}$/.test(fields[0]) && /^\d{4}-\d{3}[A-Z]$/.test(fields[1])) {
-        const norad = Number(fields[2]);
-        if (Number.isInteger(norad)) noradBySvn.set(fields[0], norad);
-      } else if (block === "SATELLITE/PRN" && fields.length >= 4 && /^[A-Z]\d{3}$/.test(fields[0]) && /^[A-Z]\d{2,3}$/.test(fields[3])) {
-        const start = parseSinexDate(fields[1]);
-        const end = parseSinexDate(fields[2]);
-        if ((start === null || start <= now) && (end === null || end >= now)) prnBySvn.set(fields[0], fields[3]);
-      }
-    }
+  function parseMetadata(text) {
+    const match = /\bconst\s+PRNMAP\s*=\s*(\{[^]*?\})\s*;/.exec(text);
+    if (!match) throw new Error("PRNMAP object was not found.");
+    const entries = JSON.parse(match[1]);
     const byNorad = new Map();
-    for (const [svn, norad] of noradBySvn) {
-      const prn = prnBySvn.get(svn);
-      byNorad.set(norad, prn || null);
+    for (const [catalogNumber, label] of Object.entries(entries)) {
+      const norad = Number(catalogNumber);
+      const prnMatch = typeof label === "string" && /^([GRECQJIS])(\d{1,3})$/.exec(label);
+      if (!/^\d+$/.test(catalogNumber) || !Number.isSafeInteger(norad) || norad <= 0 || !prnMatch) {
+        throw new Error(`Invalid PRN mapping for NORAD ${catalogNumber}.`);
+      }
+      const prefix = prnMatch[1] === "Q" ? "J" : prnMatch[1];
+      const number = Number(prnMatch[2]) - (prnMatch[1] === "Q" ? 192 : 0);
+      if (number <= 0) throw new Error(`Invalid PRN label "${label}".`);
+      byNorad.set(norad, `${prefix}${String(number).padStart(2, "0")}`);
     }
+    if (!byNorad.size) throw new Error("PRNMAP is empty.");
     return byNorad;
   }
 
@@ -261,9 +239,9 @@
       let metadata = new Map();
       if (metadataResult) {
         try {
-          metadata = parseMetadata(metadataResult.text, Date.now());
+          metadata = parseMetadata(metadataResult.text);
         } catch (error) {
-          state.errors.metadata = { message: `Could not parse IGS metadata: ${error.message}`, at: new Date().toISOString() };
+          state.errors.metadata = { message: `Could not parse PRN mapping: ${error.message}`, at: new Date().toISOString() };
         }
       }
       state.records = parseTle(tleResult.text, metadata);

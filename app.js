@@ -258,7 +258,7 @@
     for (const source of ["tle", "metadata"]) {
       const cache = snapshot.cache[source];
       const error = snapshot.errors[source];
-      const label = source === "tle" ? "TLE" : "IGS metadata";
+      const label = source === "tle" ? "TLE" : "PRN mapping";
       if (error) warnings.push(`${label}: ${error.message}`);
       if (cache.status === "stale") warnings.push(`${label} cache is stale.`);
     }

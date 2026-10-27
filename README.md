@@ -22,7 +22,7 @@ The calculation API can be used independently of the sky-map UI. Include satelli
 
 The result is always an array of `{ PRN, NORAD_ID, AZIMUTH, ELEVATION }` objects. Azimuth and elevation are in degrees. By default the result includes satellites below the horizon (negative elevation); set `aboveHorizonOnly: true` to omit them.
 
-The API downloads TLEs and IGS satellite metadata when needed and caches them in browser `localStorage` (TLEs for 6 hours, metadata for 24 hours). A failed refresh falls back to cached data when available.
+The API downloads TLEs and the [GNSS-Radar PRN mapping](https://github.com/taroz/GNSS-Radar/blob/master/js/prnmap.js) when needed and caches them in browser `localStorage` (TLEs for 6 hours, metadata for 24 hours). Both feeds use CORS-enabled raw GitHub URLs so they can be fetched from a `file://` page in Chrome. The mapping is generated upstream from IGS satellite metadata; its freshness depends on upstream updates. It is parsed as data, not executed as JavaScript. Labels are normalized to the API format (`G5` becomes `G05`, and QZSS `Q193` becomes `J01`). A failed refresh falls back to cached data when available.
 
 ```js
 const status = GNSSSatelliteAPI.getStatus();
