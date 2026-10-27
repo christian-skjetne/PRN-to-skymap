@@ -161,6 +161,7 @@
   function parseTle(text, metadata) {
     const lines = text.split(/\r?\n/);
     const records = [];
+    const assignedPrns = new Set(metadata.values());
     for (let index = 0; index < lines.length - 2; index += 1) {
       const name = lines[index].trim();
       const line1 = lines[index + 1].trim();
@@ -178,7 +179,7 @@
           : qzssPrnMatch
             ? `J${String(Number(qzssPrnMatch[1]) - 192).padStart(2, "0")}`
             : null;
-      const prn = metadata.get(norad) || namedPrn;
+      const prn = metadata.get(norad) || (assignedPrns.has(namedPrn) ? null : namedPrn);
       if (!prn || !SYSTEM_BY_PREFIX[prn[0]]) continue;
       try {
         records.push({ norad, prn, line1, line2, satrec: satellite.twoline2satrec(line1, line2) });

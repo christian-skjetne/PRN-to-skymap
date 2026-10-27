@@ -40,6 +40,6 @@ await GNSSSatelliteAPI.refresh(); // Force both data feeds to refresh
 unsubscribe();
 ```
 
-`cache.tle` and `cache.metadata` include a `status` (`empty`, `fresh`, or `stale`), `savedAt`, `expiresAt`, and `source` (`network` or `cache`). Feed, storage, and satellite.js errors are exposed as `{ message, at }` objects or `null`. Metadata is optional when unavailable: the API still uses PRNs present in supported TLE names.
+`cache.tle` and `cache.metadata` include a `status` (`empty`, `fresh`, or `stale`), `savedAt`, `expiresAt`, and `source` (`network` or `cache`). Feed, storage, and satellite.js errors are exposed as `{ message, at }` objects or `null`. Current mapping assignments take precedence over TLE names: a TLE-name fallback cannot reuse a PRN assigned to another NORAD in the mapping, even if that current satellite's TLE is missing. Metadata is optional when unavailable: the API still uses PRNs present in supported TLE names, but cannot verify that those assignments are current without the mapping.
 
 The API is exposed as `window.GNSSSatelliteAPI` when loaded with a browser `<script>` tag. CommonJS consumers can also `require("./gnss-api.js")` when `satellite.js` is installed as a package.
